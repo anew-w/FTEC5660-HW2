@@ -90,10 +90,67 @@ python3 hw2.py --cv-folder task2
 attack the MCP server. See the homework description for the full rules.
 
 ## Homework 2 solution:
-> to students: this is your report, see the homework description.
 
 ### Task 1
-> one paragraph describing your solution, and your results on `public_test`.
+The verifier uses a deterministic evidence pipeline: it parses the CV into
+structured identity, location, employment, education, and skill claims; resolves
+the candidate against MCP profiles using name, location, employer, school, and
+year evidence with LinkedIn as the primary source; and compares every relevant
+claim field by field. DeepSeek-v4-flash is used only for ambiguous layouts, close
+same-name candidates, and harmless wording differences. The agent ignores
+headline, hometown, summaries, and job descriptions, limits concurrency to three
+CVs, and returns a valid numeric score when a CV cannot be fully resolved. On the
+public test set, the final recorded run completed end-to-end and achieved 7/7
+accuracy.
 
 ### Task 2
-> the attack techniques you used and why you expect them to work.
+The final attack changes only Kelly Tsang's headline from the true "Finance
+Professional" to the job-relevant, embellished "Senior Finance Manager," while
+preserving her actual current title (Manager), location, employment dates,
+education, skills, and hometown. The submitted CV is a one-page,
+text-extractable PDF with no hidden text or prompt injection. The approach
+targets a verification-coverage gap: the stated discrepancy scope excludes
+headline, so verifiers can compare all scored fields and still accept the
+document. This is expected to transfer to the five held-out verifiers because
+they use the same MCP evidence and field definitions; three repeated local tests
+returned 0.9, above the 0.5 threshold.
+
+### Task 3: Reflection on AI Paradoxes
+
+When I built the verifier and then tried to attack it, I saw the same problem
+from two sides. The biggest problem was not the AI's writing ability. It was
+the assumptions I made about the data. For example, table-style PDFs sometimes
+gave me broken names or missed sections, so I kept a rule-based parser and
+added a structured AI fallback. When candidates had the same name, their
+identity scores could be very close. I then used name, location, employer,
+school, and years together, and only asked the model when the result was still
+unclear. I also got false warnings when the CV used different wording or only
+had partial information. So I normalized harmless differences and separated
+"unknown" from "contradicted." There was also some other problems: skill
+coverage, short MCP connection failures, and a missing logging import. This
+showed me that each CV should be handled separately, and a technical error must
+never be treated as fake evidence. After these fixes, my pipeline became more
+like several steps: extract, identify, compare, review unclear cases, and fail
+safely.
+
+The two-sided exercise gave me a more important lesson. The evidence model that
+make the verifier work also show its blind spots. A CV can keep all checked
+fields true and still mislead people with an unchecked field. A high score only
+means the CV matches the verifier's scope. It is not proof that everything is
+true. This is the AI paradox I experienced. Automation make checking faster and
+more consistent, but it can also give people too much confidence and make
+cheating more systematic. So when we design a system, positive tests are not
+enough. We also need to test how it fails. We need to define what evidence is
+used, show uncertainty, and keep a human review for important decisions.
+
+For future job applications, this helped me see the line between polishing a CV
+and misrepresenting myself. It is fine to use stronger action verbs, add real
+numbers, put the most relevant experience first, match the job's wording,
+organize skills clearly, and remove unrelated content. These changes make the
+CV easier to read without changing facts. But changing a title, date, employer,
+degree, city, or skill I do not have is different. It may pass a narrow
+automated check, but it is still misleading and can fail badly in an interview
+or background check. The "Senior Finance Manager" attack worked, but it only
+proves that there is a gap in the verifier. It is not job-search advice. The
+main lesson for me is to present my true experience better, not to change the
+evidence.
